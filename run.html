@@ -17,8 +17,12 @@ color:white;
 pointer-events:auto;">
   wind: <span id="windVal">0</span> m/s²<br>
   <input id="wind" type="range" min="-20" max="20" step="0.1" value="0" style="width:200px;"><br><br>
+
   gravity g: <span id="gravVal">9.81</span> m/s²<br>
-  <input id="grav" type="range" min="0" max="25" step="0.01" value="9.81" style="width:200px;">
+  <input id="grav" type="range" min="0" max="25" step="0.01" value="9.81" style="width:200px;"><br><br>
+
+  elasticity e: <span id="eVal">0.90</span><br>
+  <input id="elastic" type="range" min="0" max="1" step="0.01" value="0.90" style="width:200px;">
 </div>
 
 <script>
@@ -30,7 +34,7 @@ let ppm=200;
 let xPos=(c.width/ppm)/2;
 let yPos=0.5;
 let vx=0, vy=0;
-let g=9.81, wind=0;
+let g=9.81, wind=0, e=0.90;
 let rpx=25;
 let dragging=false;
 
@@ -41,10 +45,10 @@ function loop(){
     xPos+=vx*0.016; yPos+=vy*0.016;
   }
   let W=c.width/ppm,H=c.height/ppm,r=rpx/ppm;
-  if(xPos+r>=W){xPos=W-r;vx=-vx*0.9;}
-  if(xPos-r<=0){xPos=r;vx=-vx*0.9;}
-  if(yPos+r>=H){yPos=H-r;vy=-vy*0.9;}
-  if(yPos-r<=0){yPos=r;vy=-vy*0.9;}
+  if(xPos+r>=W){xPos=W-r;vx=-vx*e;}
+  if(xPos-r<=0){xPos=r;vx=-vx*e;}
+  if(yPos+r>=H){yPos=H-r;vy=-vy*e;}
+  if(yPos-r<=0){yPos=r;vy=-vy*e;}
 
   ctx.clearRect(0,0,c.width,c.height);
   ctx.beginPath(); ctx.arc(xPos*ppm,yPos*ppm,rpx,0,Math.PI*2);
@@ -54,7 +58,7 @@ function loop(){
 }
 requestAnimationFrame(loop);
 
-// global pointer (not canvas)
+// drag the ball
 window.addEventListener("pointerdown",e=>{
   const rect=c.getBoundingClientRect();
   const mx=e.clientX-rect.left,my=e.clientY-rect.top;
@@ -69,14 +73,23 @@ window.addEventListener("pointermove",e=>{
 });
 window.addEventListener("pointerup",()=>dragging=false);
 
-// sliders  ← THIS IS THE FIX
+// wind slider
 document.getElementById("wind").oninput = e=>{
-  wind = parseFloat(e.target.value);
-  document.getElementById("windVal").textContent = wind;
+  wind=parseFloat(e.target.value);
+  document.getElementById("windVal").textContent=wind;
 };
+
+// gravity slider
 document.getElementById("grav").oninput = e=>{
-  g = parseFloat(e.target.value);
-  document.getElementById("gravVal").textContent = g.toFixed(2);
+  g=parseFloat(e.target.value);
+  document.getElementById("gravVal").textContent=g.toFixed(2);
+};
+
+// elasticity slider
+document.getElementById("elastic").oninput = e=>{
+  e=parseFloat(e.target.value);
+  window.elasticity=e; // optional debug
+  document.getElementById("eVal").textContent=e.toFixed(2);
 };
 </script>
 </body>
