@@ -33,7 +33,7 @@
 <body>
   <div class="wrap">
     <header>
-      <h1>超彈力彈跳球｜地球重力，無風</h1>
+      <h1>超彈力彈跳球｜地球重力（中壢），無風</h1>
       <span class="pill">e≈1、g=9.81 m/s²</span>
     </header>
 
@@ -50,6 +50,10 @@
         <div class="ctrl">
           <label>重力 g (m/s²) <span id="gVal"></span></label>
           <input id="g" type="range" min="0" max="19.62" step="0.01" value="9.81" />
+        </div>
+        <div class="ctrl">
+          <label>風阻 c (1/s) <span id="dragVal"></span></label>
+          <input id="drag" type="range" min="0" max="2" step="0.01" value="0.00" />
         </div>
         <div class="ctrl">
           <label>半徑 r (px) <span id="rVal"></span></label>
@@ -94,6 +98,7 @@
 
     // 參數
     const ui = {
+      drag: document.getElementById('drag'),
       e: document.getElementById('e'),
       g: document.getElementById('g'),
       r: document.getElementById('r'),
@@ -104,12 +109,14 @@
       rVal: document.getElementById('rVal'),
       vyVal: document.getElementById('vyVal'),
       ppmVal: document.getElementById('ppmVal'),
+      dragVal: document.getElementById('dragVal'),
       toggle: document.getElementById('toggle'),
       kick: document.getElementById('kick'),
       reset: document.getElementById('reset'),
     };
 
     function syncLabels(){
+      ui.dragVal.textContent = `(${Number(ui.drag.value).toFixed(2)})`;
       ui.eVal.textContent = `(${Number(ui.e.value).toFixed(3)})`;
       ui.gVal.textContent = `(${Number(ui.g.value).toFixed(2)})`;
       ui.rVal.textContent = `(${ui.r.value})`;
@@ -117,8 +124,9 @@
       ui.ppmVal.textContent = `(${ui.ppm.value})`;
     }
     ['input','change'].forEach(evt=>{
-      ['e','g','r','vy0','ppm'].forEach(k=>ui[k].addEventListener(evt, syncLabels));
+      ['e','g','r','vy0','ppm','drag'].forEach(k=>ui[k].addEventListener(evt, syncLabels));
     });
+    ui.dragVal.textContent = `(${Number(ui.drag.value).toFixed(2)})`;
     syncLabels();
 
     // 狀態（使用物理單位 m, s；渲染時換算成 px）
@@ -150,7 +158,8 @@
       const dt = Math.min(0.033, (now - last) / 1000); // 最多 33ms，避免後台 tab 回來爆衝
       last = now;
       const g = parseFloat(ui.g.value);      // m/s^2
-      const e = parseFloat(ui.e.value);      // 係數
+      const e = parseFloat(ui.e.value);
+      const drag = parseFloat(ui.drag.value);      // 係數
       const ppm = parseFloat(ui.ppm.value);  // px/m
       const rpx = parseFloat(ui.r.value);    // px
 
@@ -161,6 +170,7 @@
       if(!state.paused){
         // 更新速度與位置
         state.vy += g * dt;
+        state.vy += -drag * state.vy * dt;
         state.y  += state.vy * dt;
 
         // 與地面碰撞（底部） y + r >= H
