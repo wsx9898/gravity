@@ -1,5 +1,19 @@
 <!doctype html>
 <html>
+<head>
+<style>
+*{
+  user-select:none;
+  -webkit-user-select:none;
+  -webkit-touch-callout:none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+::selection{
+  background:rgba(0,0,0,0) !important;
+}
+</style>
+</head>
 <body style="margin:0;background:#000;">
 <canvas id="c" style="width:100vw;height:100vh;display:block;pointer-events:none;"></canvas>
 
@@ -33,30 +47,54 @@ const c=document.getElementById("c"),ctx=c.getContext("2d");
 function resize(){c.width=c.clientWidth;c.height=c.clientHeight}
 window.addEventListener("resize",resize);resize();
 
+// state
 let ppm=200;
 let xPos=(c.width/ppm)/2;
 let yPos=0.5;
 let vx=0, vy=0;
-let g=9.81, wind=0, e=0.90, drag=0.40;
+let g=9.81, wind=0, elastic=0.90, drag=0.40;
 let rpx=25;
 let dragging=false;
 
 function loop(){
+
   if(!dragging){
+    // symplectic Euler
+    xPos += vx*0.016;
+    yPos += vy*0.016;
+
     vx += wind*0.016;
     vx += -drag*vx*0.016;
 
     vy += g*0.016;
     vy += -drag*vy*0.016;
-
-    xPos+=vx*0.016; yPos+=vy*0.016;
   }
 
   let W=c.width/ppm,H=c.height/ppm,r=rpx/ppm;
-  if(xPos+r>=W){xPos=W-r;vx=-vx*e;}
-  if(xPos-r<=0){xPos=r;vx=-vx*e;}
-  if(yPos+r>=H){yPos=H-r;vy=-vy*e;}
-  if(yPos-r<=0){yPos=r;vy=-vy*e;}
+
+  // --- damping 用於防止 energy explosion ---
+  const damp = 0.999999;
+
+  if(xPos+r>=W){
+    xPos=W-r;
+    vx=-vx*elastic;
+    vx*=damp;
+  }
+  if(xPos-r<=0){
+    xPos=r;
+    vx=-vx*elastic;
+    vx*=damp;
+  }
+  if(yPos+r>=H){
+    yPos=H-r;
+    vy=-vy*elastic;
+    vy*=damp;
+  }
+  if(yPos-r<=0){
+    yPos=r;
+    vy=-vy*elastic;
+    vy*=damp;
+  }
 
   ctx.clearRect(0,0,c.width,c.height);
   ctx.beginPath(); ctx.arc(xPos*ppm,yPos*ppm,rpx,0,Math.PI*2);
@@ -66,7 +104,7 @@ function loop(){
 }
 requestAnimationFrame(loop);
 
-// dragging
+// dragging ball
 window.addEventListener("pointerdown",e=>{
   const rect=c.getBoundingClientRect();
   const mx=e.clientX-rect.left,my=e.clientY-rect.top;
@@ -81,23 +119,15 @@ window.addEventListener("pointermove",e=>{
 });
 window.addEventListener("pointerup",()=>dragging=false);
 
-// sliders
-document.getElementById("wind").oninput = e=>{
-  wind=parseFloat(e.target.value);
-  document.getElementById("windVal").textContent=wind;
-};
-document.getElementById("grav").oninput = e=>{
-  g=parseFloat(e.target.value);
-  document.getElementById("gravVal").textContent=g.toFixed(2);
-};
-document.getElementById("elastic").oninput = e=>{
-  e=parseFloat(e.target.value);
-  document.getElementById("eVal").textContent=e.toFixed(2);
-};
-document.getElementById("drag").oninput = e=>{
-  drag=parseFloat(e.target.value);
-  document.getElementById("dragVal").textContent=drag.toFixed(2);
-};
+// sliders bind
+const windSlider=document.getElementById("wind");
+windSlider.oninput=()=>{wind=parseFloat(windSlider.value);windVal.textContent=wind.toFixed(2);}
+const gravSlider=document.getElementById("grav");
+gravSlider.oninput=()=>{g=parseFloat(gravSlider.value);gravVal.textContent=g.toFixed(2);}
+const elasticSlider=document.getElementById("elastic");
+elasticSlider.oninput=()=>{elastic=parseFloat(elasticSlider.value);eVal.textContent=elastic.toFixed(2);}
+const dragSlider=document.getElementById("drag");
+dragSlider.oninput=()=>{drag=parseFloat(dragSlider.value);dragVal.textContent=drag.toFixed(2);}
 </script>
 </body>
 </html>
