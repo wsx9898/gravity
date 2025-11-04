@@ -22,7 +22,10 @@ pointer-events:auto;">
   <input id="grav" type="range" min="0" max="25" step="0.01" value="9.81" style="width:200px;"><br><br>
 
   elasticity e: <span id="eVal">0.90</span><br>
-  <input id="elastic" type="range" min="0" max="1" step="0.01" value="0.90" style="width:200px;">
+  <input id="elastic" type="range" min="0" max="1" step="0.01" value="0.90" style="width:200px;"><br><br>
+
+  drag c: <span id="dragVal">0.40</span><br>
+  <input id="drag" type="range" min="0" max="2" step="0.01" value="0.40" style="width:200px;">
 </div>
 
 <script>
@@ -34,16 +37,21 @@ let ppm=200;
 let xPos=(c.width/ppm)/2;
 let yPos=0.5;
 let vx=0, vy=0;
-let g=9.81, wind=0, e=0.90;
+let g=9.81, wind=0, e=0.90, drag=0.40;
 let rpx=25;
 let dragging=false;
 
 function loop(){
   if(!dragging){
-    vx+= wind*0.016; vx+= -0.4*vx*0.016;
-    vy+= g*0.016;   vy+= -0.4*vy*0.016;
+    vx += wind*0.016;
+    vx += -drag*vx*0.016;
+
+    vy += g*0.016;
+    vy += -drag*vy*0.016;
+
     xPos+=vx*0.016; yPos+=vy*0.016;
   }
+
   let W=c.width/ppm,H=c.height/ppm,r=rpx/ppm;
   if(xPos+r>=W){xPos=W-r;vx=-vx*e;}
   if(xPos-r<=0){xPos=r;vx=-vx*e;}
@@ -58,7 +66,7 @@ function loop(){
 }
 requestAnimationFrame(loop);
 
-// drag the ball
+// dragging
 window.addEventListener("pointerdown",e=>{
   const rect=c.getBoundingClientRect();
   const mx=e.clientX-rect.left,my=e.clientY-rect.top;
@@ -73,23 +81,22 @@ window.addEventListener("pointermove",e=>{
 });
 window.addEventListener("pointerup",()=>dragging=false);
 
-// wind slider
+// sliders
 document.getElementById("wind").oninput = e=>{
   wind=parseFloat(e.target.value);
   document.getElementById("windVal").textContent=wind;
 };
-
-// gravity slider
 document.getElementById("grav").oninput = e=>{
   g=parseFloat(e.target.value);
   document.getElementById("gravVal").textContent=g.toFixed(2);
 };
-
-// elasticity slider
 document.getElementById("elastic").oninput = e=>{
   e=parseFloat(e.target.value);
-  window.elasticity=e; // optional debug
   document.getElementById("eVal").textContent=e.toFixed(2);
+};
+document.getElementById("drag").oninput = e=>{
+  drag=parseFloat(e.target.value);
+  document.getElementById("dragVal").textContent=drag.toFixed(2);
 };
 </script>
 </body>
