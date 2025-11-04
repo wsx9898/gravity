@@ -33,7 +33,7 @@
 <body>
   <div class="wrap">
     <header>
-      <h1>超彈力彈跳球｜地球重力（中壢），無風</h1>
+      <h1>超彈力彈跳球｜地球重力（），無風</h1>
       <span class="pill">e≈1、g=9.81 m/s²</span>
     </header>
 
@@ -186,8 +186,8 @@
       }
 
       // 繪製
-      draw();
-      requestAnimationFrame(step);
+      draw(); // render
+      requestAnimationFrame(step); // next frame
 
       function draw(){
         const w = canvas.clientWidth, h = canvas.clientHeight;
@@ -234,12 +234,37 @@
         // 浮水印
         ctx.font = '12px system-ui, -apple-system, Segoe UI, Roboto';
         ctx.fillStyle = 'rgba(226,232,240,.7)';
-        ctx.fillText('Zhongli • Earth • No Wind • Elastic', 10, h-10);
+        ctx.fillText('Earth • No Wind • Elastic', 10, h-10);
       }
     }
 
     requestAnimationFrame(step);
-  })();
+  // --- mouse drag C-mode ---
+    canvas.addEventListener('mousedown', e=>{
+      const rect = canvas.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      const ppm = parseFloat(ui.ppm.value);
+      const rpx = parseFloat(ui.r.value);
+      const cy = state.y * ppm;
+      if( Math.hypot(x - canvas.clientWidth*0.5, y - cy) <= rpx ){
+        state.dragging = true;
+        state.paused = true;
+      }
+    });
+    canvas.addEventListener('mousemove', e=>{
+      if(!state.dragging) return;
+      const rect = canvas.getBoundingClientRect();
+      const y = e.clientY - rect.top;
+      const ppm = parseFloat(ui.ppm.value);
+      state.y = y/ppm;
+      state.vy=0;
+    });
+    window.addEventListener('mouseup', ()=>{
+      if(state.dragging){ state.paused=false; }
+      state.dragging=false;
+    });
+})();
   </script>
 </body>
 </html>
