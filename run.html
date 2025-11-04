@@ -2,6 +2,13 @@
 <html>
 <body style="margin:0;background:#000;">
 <canvas id="c" style="width:100vw;height:100vh;display:block"></canvas>
+
+<!-- wind UI -->
+<div style="position:fixed;left:10px;top:10px;color:white;font-family:system-ui;">
+  wind: <span id="windVal">0</span> m/s²<br>
+  <input id="wind" type="range" min="-20" max="20" step="0.1" value="0" style="width:200px;">
+</div>
+
 <script>
 const c=document.getElementById("c"),ctx=c.getContext("2d");
 function resize(){c.width=c.clientWidth;c.height=c.clientHeight}
@@ -23,20 +30,15 @@ function reset(){
 }
 
 function loop(t){
-  // physics
   if(!dragging){
-    // ---- drag added here ----
     vx += wind*0.016;
-    vx += -0.4 * vx * 0.016;  // linear drag
+    vx += -0.4 * vx * 0.016;
     vy += g*0.016;
-    vy += -0.4 * vy * 0.016;  // linear drag
-    // -------------------------
-
+    vy += -0.4 * vy * 0.016;
     xPos+= vx*0.016;
     yPos+= vy*0.016;
   }
 
-  // wall bounce
   let W=c.width/ppm,H=c.height/ppm;
   let r=rpx/ppm;
   if(xPos+r>=W){xPos=W-r;vx=-vx*0.9;}
@@ -44,7 +46,6 @@ function loop(t){
   if(yPos+r>=H){yPos=H-r;vy=-vy*0.9;}
   if(yPos-r<=0){yPos=r;vy=-vy*0.9;}
 
-  // draw
   ctx.clearRect(0,0,c.width,c.height);
   ctx.beginPath();
   ctx.arc(xPos*ppm,yPos*ppm,rpx,0,Math.PI*2);
@@ -68,6 +69,12 @@ c.onmousemove=e=>{
   vx=vy=0;
 }
 window.onmouseup=()=>dragging=false;
+
+// wind UI
+const wS=document.getElementById("wind");
+const wV=document.getElementById("windVal");
+wS.oninput=()=>{wind=parseFloat(wS.value);wV.textContent=wind;}
+
 </script>
 </body>
 </html>
