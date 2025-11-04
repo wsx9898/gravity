@@ -1,12 +1,24 @@
 <!doctype html>
 <html>
 <body style="margin:0;background:#000;">
-<canvas id="c" style="width:100vw;height:100vh;display:block"></canvas>
+<canvas id="c" style="width:100vw;height:100vh;display:block;pointer-events:none;"></canvas>
 
-<!-- wind UI -->
-<div style="position:fixed;left:10px;top:10px;color:white;font-family:system-ui;">
+<div id="ui"
+style="
+position:fixed;
+left:10px;top:10px;
+padding:10px;
+background:rgba(0,0,0,0.55);
+backdrop-filter:blur(6px);
+border:1px solid rgba(255,255,255,0.15);
+border-radius:12px;
+font-family:system-ui;
+color:white;
+pointer-events:auto;">
   wind: <span id="windVal">0</span> m/s²<br>
-  <input id="wind" type="range" min="-20" max="20" step="0.1" value="0" style="width:200px;">
+  <input id="wind" type="range" min="-20" max="20" step="0.1" value="0" style="width:200px;"><br><br>
+  gravity g: <span id="gravVal">9.81</span> m/s²<br>
+  <input id="grav" type="range" min="0" max="25" step="0.01" value="9.81" style="width:200px;">
 </div>
 
 <script>
@@ -15,66 +27,57 @@ function resize(){c.width=c.clientWidth;c.height=c.clientHeight}
 window.addEventListener("resize",resize);resize();
 
 let ppm=200;
-let xPos, yPos, vx, vy;
-let g=9.81;
-let wind=0;
+let xPos=(c.width/ppm)/2;
+let yPos=0.5;
+let vx=0, vy=0;
+let g=9.81, wind=0;
 let rpx=25;
 let dragging=false;
-reset();
 
-function reset(){
-  xPos=(c.width/ppm)/2; // center
-  yPos=0.5;
-  vx=0;
-  vy=0;
-}
-
-function loop(t){
+function loop(){
   if(!dragging){
-    vx += wind*0.016;
-    vx += -0.4 * vx * 0.016;
-    vy += g*0.016;
-    vy += -0.4 * vy * 0.016;
-    xPos+= vx*0.016;
-    yPos+= vy*0.016;
+    vx+= wind*0.016; vx+= -0.4*vx*0.016;
+    vy+= g*0.016;   vy+= -0.4*vy*0.016;
+    xPos+=vx*0.016; yPos+=vy*0.016;
   }
-
-  let W=c.width/ppm,H=c.height/ppm;
-  let r=rpx/ppm;
+  let W=c.width/ppm,H=c.height/ppm,r=rpx/ppm;
   if(xPos+r>=W){xPos=W-r;vx=-vx*0.9;}
   if(xPos-r<=0){xPos=r;vx=-vx*0.9;}
   if(yPos+r>=H){yPos=H-r;vy=-vy*0.9;}
   if(yPos-r<=0){yPos=r;vy=-vy*0.9;}
 
   ctx.clearRect(0,0,c.width,c.height);
-  ctx.beginPath();
-  ctx.arc(xPos*ppm,yPos*ppm,rpx,0,Math.PI*2);
-  ctx.fillStyle="#3cf";ctx.fill();
+  ctx.beginPath(); ctx.arc(xPos*ppm,yPos*ppm,rpx,0,Math.PI*2);
+  ctx.fillStyle="#3cf"; ctx.fill();
 
   requestAnimationFrame(loop);
 }
 requestAnimationFrame(loop);
 
-c.onmousedown=e=>{
+// global pointer (not canvas)
+window.addEventListener("pointerdown",e=>{
   const rect=c.getBoundingClientRect();
   const mx=e.clientX-rect.left,my=e.clientY-rect.top;
   if((mx-xPos*ppm)**2+(my-yPos*ppm)**2<=rpx*rpx) dragging=true;
-}
-c.onmousemove=e=>{
+});
+window.addEventListener("pointermove",e=>{
   if(!dragging)return;
   const rect=c.getBoundingClientRect();
-  const mx=e.clientX-rect.left,my=e.clientY-rect.top;
-  xPos=mx/ppm;
-  yPos=my/ppm;
+  xPos=(e.clientX-rect.left)/ppm;
+  yPos=(e.clientY-rect.top)/ppm;
   vx=vy=0;
-}
-window.onmouseup=()=>dragging=false;
+});
+window.addEventListener("pointerup",()=>dragging=false);
 
-// wind UI
-const wS=document.getElementById("wind");
-const wV=document.getElementById("windVal");
-wS.oninput=()=>{wind=parseFloat(wS.value);wV.textContent=wind;}
-
+// sliders  ← THIS IS THE FIX
+document.getElementById("wind").oninput = e=>{
+  wind = parseFloat(e.target.value);
+  document.getElementById("windVal").textContent = wind;
+};
+document.getElementById("grav").oninput = e=>{
+  g = parseFloat(e.target.value);
+  document.getElementById("gravVal").textContent = g.toFixed(2);
+};
 </script>
 </body>
 </html>
