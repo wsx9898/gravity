@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>超彈力彈跳球｜地球重力・無風</title>
+  <style>
+    :root{
+      --bg:#0f172a;/* slate-900 */
+      --panel:#111827;/* gray-900 */
+      --text:#e5e7eb;/* gray-200 */
+      --muted:#94a3b8;/* slate-400 */
+      --accent:#22d3ee;/* cyan-400 */
+    }
+    html,body{height:100%;margin:0;background:radial-gradient(1000px 600px at 50% -200px,#1e293b,#0b1220 60%,#070b14);color:var(--text);font-family:system-ui,Segoe UI,Roboto,Helvetica,Arial,"Apple Color Emoji","Segoe UI Emoji"}
+    .wrap{max-width:1000px;margin:0 auto;padding:16px;display:grid;gap:16px}
+    header{display:flex;align-items:center;justify-content:space-between;gap:12px}
+    h1{font-size:20px;margin:0;letter-spacing:.5px}
+    .pill{font-size:12px;color:var(--bg);background:var(--accent);padding:4px 10px;border-radius:999px}
+    .panel{background:rgba(17,24,39,.6);backdrop-filter: blur(6px);border:1px solid rgba(148,163,184,.2);border-radius:14px}
+    .canvasBox{position:relative;aspect-ratio:16/9;min-height:360px;display:grid;place-items:center;overflow:hidden}
+    canvas{width:100%;height:100%;display:block}
+    .controls{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:10px;padding:12px}
+    .ctrl{display:flex;flex-direction:column;gap:6px;font-size:12px}
+    .ctrl label{color:var(--muted)}
+    input[type=range]{width:100%}
+    .btns{display:flex;gap:8px;flex-wrap:wrap}
+    button{background:#0ea5e9;border:0;color:white;padding:8px 12px;border-radius:10px;font-weight:600;cursor:pointer}
+    button.secondary{background:#334155}
+    .footer{font-size:12px;color:var(--muted);padding:8px 12px}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <h1>超彈力彈跳球｜地球重力，無風</h1>
+      <span class="pill">e≈1、g=9.81 m/s²</span>
+    </header>
+
+    <section class="panel canvasBox">
+      <canvas id="world"></canvas>
+    </section>
+
+    <section class="panel">
+      <div class="controls">
+        <div class="ctrl">
+          <label>彈性係數 e <span id="eVal"></span></label>
+          <input id="e" type="range" min="0.70" max="0.999" step="0.001" value="0.990" />
+        </div>
+        <div class="ctrl">
+          <label>重力 g (m/s²) <span id="gVal"></span></label>
+          <input id="g" type="range" min="0" max="19.62" step="0.01" value="9.81" />
+        </div>
+        <div class="ctrl">
+          <label>半徑 r (px) <span id="rVal"></span></label>
+          <input id="r" type="range" min="10" max="80" step="1" value="26" />
+        </div>
+        <div class="ctrl">
+          <label>初速 vy₀ (m/s) <span id="vyVal"></span></label>
+          <input id="vy0" type="range" min="-20" max="20" step="0.1" value="0" />
+        </div>
+        <div class="ctrl">
+          <label>像素/公尺 (px/m) <span id="ppmVal"></span></label>
+          <input id="ppm" type="range" min="50" max="400" step="10" value="140" />
+        </div>
+        <div class="ctrl">
+          <label>操作</label>
+          <div class="btns">
+            <button id="toggle">暫停</button>
+            <button id="kick">給一腳（+8 m/s）</button>
+            <button id="reset" class="secondary">重置</button>
+          </div>
+        </div>
+      </div>
+      <div class="footer">說明：無風（無水平力），只考慮重力與地面/天花板碰撞，碰撞為彈性且以 e 作能量損失近似。</div>
+    </section>
+  </div>
+
+  <script>
+  (()=>{
+    const canvas = document.getElementById('world');
+    const ctx = canvas.getContext('2d');
+
+    // DPR 縮放處理
+    function resize(){
+      const dpr = Math.max(1, window.devicePixelRatio||1);
+      const rect = canvas.parentElement.getBoundingClientRect();
+      canvas.width = Math.floor(rect.width * dpr);
+      canvas.height = Math.floor(rect.height * dpr);
+      ctx.setTransform(dpr,0,0,dpr,0,0);
+    }
+    window.addEventListener('resize', resize, {passive:true});
+    resize();
+
+    // 參數
+    const ui = {
+      e: document.getElementById('e'),
+      g: document.getElementById('g'),
+      r: document.getElementById('r'),
+      vy0: document.getElementById('vy0'),
+      ppm: document.getElementById('ppm'),
+      eVal: document.getElementById('eVal'),
+      gVal: document.getElementById('gVal'),
+      rVal: document.getElementById('rVal'),
+      vyVal: document.getElementById('vyVal'),
+      ppmVal: document.getElementById('ppmVal'),
+      toggle: document.getElementById('toggle'),
+      kick: document.getElementById('kick'),
+      reset: document.getElementById('reset'),
+    };
+
+    function syncLabels(){
+      ui.eVal.textContent = `(${Number(ui.e.value).toFixed(3)})`;
+      ui.gVal.textContent = `(${Number(ui.g.value).toFixed(2)})`;
+      ui.rVal.textContent = `(${ui.r.value})`;
+      ui.vyVal.textContent = `(${Number(ui.vy0.value).toFixed(1)})`;
+      ui.ppmVal.textContent = `(${ui.ppm.value})`;
+    }
+    ['input','change'].forEach(evt=>{
+      ['e','g','r','vy0','ppm'].forEach(k=>ui[k].addEventListener(evt, syncLabels));
+    });
+    syncLabels();
+
+    // 狀態（使用物理單位 m, s；渲染時換算成 px）
+    let state = {
+      y: 0.5,          // 位置 (m)，0 在畫布頂端
+      vy: 0.0,         // 速度 (m/s) 正向向下
+      paused: false
+    };
+
+    function reset(){
+      state.y = 0.5; // 50 公分高度起始
+      state.vy = parseFloat(ui.vy0.value);
+    }
+    ui.reset.addEventListener('click', reset);
+    reset();
+
+    ui.toggle.addEventListener('click', ()=>{
+      state.paused = !state.paused;
+      ui.toggle.textContent = state.paused ? '繼續' : '暫停';
+    });
+
+    ui.kick.addEventListener('click', ()=>{
+      state.vy -= 8; // 往上踢，速度減少（向上）
+    });
+
+    let last = performance.now();
+
+    function step(now){
+      const dt = Math.min(0.033, (now - last) / 1000); // 最多 33ms，避免後台 tab 回來爆衝
+      last = now;
+      const g = parseFloat(ui.g.value);      // m/s^2
+      const e = parseFloat(ui.e.value);      // 係數
+      const ppm = parseFloat(ui.ppm.value);  // px/m
+      const rpx = parseFloat(ui.r.value);    // px
+
+      const height_px = canvas.clientHeight; // CSS 像素
+      const height_m = Math.max(0.1, height_px / ppm); // 換算成公尺
+      const radius_m = rpx / ppm;
+
+      if(!state.paused){
+        // 更新速度與位置
+        state.vy += g * dt;
+        state.y  += state.vy * dt;
+
+        // 與地面碰撞（底部） y + r >= H
+        if(state.y + radius_m >= height_m){
+          state.y = height_m - radius_m; // 貼齊
+          state.vy = -state.vy * e;      // 彈回
+        }
+        // 與天花板碰撞（頂部） y - r <= 0
+        if(state.y - radius_m <= 0){
+          state.y = radius_m;
+          state.vy = -state.vy * e;
+        }
+      }
+
+      // 繪製
+      draw();
+      requestAnimationFrame(step);
+
+      function draw(){
+        const w = canvas.clientWidth, h = canvas.clientHeight;
+        ctx.clearRect(0,0,w,h);
+
+        // 地面/天花板輔助線
+        ctx.globalAlpha = 0.6;
+        ctx.beginPath();
+        ctx.moveTo(0,1); ctx.lineTo(w,1);
+        ctx.moveTo(0,h-1); ctx.lineTo(w,h-1);
+        ctx.lineWidth = 2; ctx.strokeStyle = 'rgba(148,163,184,.35)'; ctx.stroke();
+        ctx.globalAlpha = 1;
+
+        // 球
+        const ypx = state.y * ppm; // 以頂端為 0
+        const cy = ypx; // 已在 CSS 像素座標
+        const cx = w*0.5;
+
+        // 漂亮一點的球與陰影
+        const grd = ctx.createRadialGradient(cx - rpx*0.4, cy - rpx*0.4, rpx*0.1, cx, cy, rpx);
+        grd.addColorStop(0,'#7dd3fc');
+        grd.addColorStop(1,'#0284c7');
+
+        // 陰影
+        const shadowY = Math.min(h-8, cy + rpx + 16);
+        const stretch = Math.max(0.5, 1 - (h - (cy + rpx)) / (h));
+        ctx.beginPath();
+        ctx.ellipse(cx, shadowY, rpx * 0.9, (rpx*0.35)*stretch, 0, 0, Math.PI*2);
+        ctx.fillStyle = 'rgba(0,0,0,.25)';
+        ctx.fill();
+
+        // 球體
+        ctx.beginPath();
+        ctx.arc(cx, cy, rpx, 0, Math.PI*2);
+        ctx.fillStyle = grd;
+        ctx.fill();
+
+        // 高光
+        ctx.beginPath();
+        ctx.arc(cx - rpx*0.35, cy - rpx*0.35, rpx*0.18, 0, Math.PI*2);
+        ctx.fillStyle = 'rgba(255,255,255,.75)';
+        ctx.fill();
+
+        // 浮水印
+        ctx.font = '12px system-ui, -apple-system, Segoe UI, Roboto';
+        ctx.fillStyle = 'rgba(226,232,240,.7)';
+        ctx.fillText('Zhongli • Earth • No Wind • Elastic', 10, h-10);
+      }
+    }
+
+    requestAnimationFrame(step);
+  })();
+  </script>
+</body>
+</html>
